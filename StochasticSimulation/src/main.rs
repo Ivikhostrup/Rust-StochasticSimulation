@@ -1,136 +1,109 @@
-use std::collections::HashMap;
-use std::ops;
+use std::cell::RefCell;
+use rand::Rng;
+use rand::prelude::StdRng;
+use rand::SeedableRng;
 
-pub trait CallBack {
-    fn call(&self, time: f64, chemical_system: &ChemicalSystem);
+pub trait Visitor<'a> {
+    fn visit_species(&mut self, species: &'a Species);
+    fn visit_reactions(&mut self, reaction: &'a Reaction);
 }
 
-pub struct SpeciesQuantityRecorder {
-    species_name: Vec<String>,
-    monitored_species: Vec<Vec<f64>>,
-    time_points: Vec<f64>
-}
+pub struct SystemVisitor;
 
-impl CallBack for SpeciesQuantityRecorder {
-    fn call(&mut self, time: f64, chemical_system: &ChemicalSystem) {
-        self.time_points.push(time);
+impl<'a> Visitor<'a> for SystemVisitor {
+    fn visit_species(&mut self, species: &'a Species) {
+        species.quantity - 1;
+    }
 
-        for (i, species_name) in self.species_name.iter().enumerate() {
+    fn visit_reactions(&mut self, reaction: &'a Reaction) {
+        for species in &reaction.reactants {
+            self.visit_species(species);
+        }
 
+        for species in &reaction.products {
+            self.visit_species(species);
         }
     }
 }
 
-pub struct Monitor {
-    callback: Box<dyn CallBack>
+pub struct System<'a> {
+    reactions: Vec<Reaction<'a>>
 }
 
-impl Monitor {
-    pub fn new(callback: Box<dyn CallBack>) -> Self {
-        Monitor { callback }
+pub struct Reaction<'a> {
+    reactants: Vec<&'a Species>,
+    products: Vec<&'a Species>,
+    delay: f64,
+    lambda: f64
+}
+
+impl<'a> Reaction<'a> {
+    fn accept(&'a mut self, visitor: &mut dyn Visitor<'a>) {
+        visitor.visit_reactions(self);
     }
 
-    pub fn on_state_changed(&self, time: f64, chemical_system: &ChemicalSystem) {
-        self.callback.call(time, chemical_system);
-    }
+    fn compute_delay(&mut self, rng: &mut SeedableRng) {
+        let mut lambda = self.lambda;
 
-    pub fn get_callback(&self) -> &(dyn CallBack) {
-        &*self.callback
+        for species in &self.reactants {
+            lambda *= species.quantity.get() as f64;
+        }
+
+        let distribution = match Exp::new(lambda) {
+            Ok(dist) => dist,
+            Err(_) => {
+                return;
+            }
+        };
+
+        self.delay = distribution.sample(rng);
     }
 }
 
 pub struct Species {
     name: String,
-    quantity: i32
+    quantity: RefCell<i32>
 }
 
-impl Species {
-    pub fn new(name: String, quantity: i32) -> Self {
-        Species {name, quantity}
-    }
-
-    pub fn get_name(&self) -> &String {
-        &self.name
-    }
-
-    pub fn get_quantity(&self) -> &i32 {
-        &self.quantity
+impl<'a> Species {
+    fn accept(&'a mut self, visitor: &mut dyn Visitor<'a>) {
+        visitor.visit_species(self);
     }
 }
 
-impl ops::Add for Species {
-    type Output = CombinedElements;
-
-    fn add(self, rhs: Self) -> CombinedElements {
-        let mut combined = CombinedElements::new();
-        combined.add(self);
-        combined.add(rhs);
-        combined
-    }
+fn species_builder(name: &str, quantity: i32) -> Species {
+    Species { name: name.to_string(), quantity }
 }
 
-pub struct CombinedElements {
-    combined_species: Vec<Species>
-}
+fn simulate(system: &mut System, end_time: f32) {
+    let start_time: f32 = 0.0;
+    let mut visitor: SystemVisitor;
 
-impl CombinedElements {
-    pub fn new() -> Self {
-        CombinedElements {combined_species: Vec::new()}
-    }
-
-    pub fn add(&mut self, species: Species) {
-        self.combined_species.push(species)
-    }
-
-    pub fn get_combined_species(&self) -> &Vec<Species> {
-        &self.combined_species
-    }
-}
-
-pub struct Reaction {
-    reactants: CombinedElements,
-    products: CombinedElements,
-    lambda: f64,
-    delay: f64
-}
-
-impl Reaction {
-    pub fn new(reactants: CombinedElements, products: CombinedElements, lambda: f64) -> Self {
-        Reaction {
-            reactants,
-            products,
-            lambda,
-            delay: f64::MAX
+    while start_time < end_time {
+        for reaction in &mut system.reactions {
+            reaction.accept(&mut visitor);
         }
     }
 }
 
-pub struct ChemicalSystem {
-}
-
-impl ChemicalSystem {
-
-}
-
-pub struct SymbolTable<T> {
-    symbol_table: HashMap<String, T>
-}
-
-impl<T> SymbolTable<T> {
-    fn new() -> Self {
-        SymbolTable { symbol_table: HashMap::new()}
-    }
-
-    fn add_symbol(&mut self, name: String, object: T) {
-        &self.symbol_table.entry(name).or_insert(object);
-    }
-}
 
 fn main() {
-    let a = Species::new(String::from("A"), 2);
-    let b = Species::new(String::from("B"), 3);
-    let c = Species::new(String::from("C"), 1);
-    let d = Species::new(String::from("D"), 3);
+    let a = species_builder("A", 2);
+    let b = species_builder("B", 1);
+    let c = species_builder("C", 1);
+    let d = species_builder("D", 3);
+    let h = species_builder("H", 1);
 
-    let reactants = Reaction::new(a + b, c + d, 0.001);
+
+    let reactants_1 = vec![&a, &b];
+    let products_1 = vec![&c, &d];
+    let reactants_2 = vec![&b, &d];
+    let products_2 = vec![&h, &a];
+
+    let reaction = Reaction {
+        reactants: reactants_1,
+        products: products_1,
+        delay: 0.0,
+        lambda: f64::MAX
+    };
 }
