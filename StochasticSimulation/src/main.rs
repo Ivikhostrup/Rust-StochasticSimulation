@@ -1,109 +1,72 @@
-use std::cell::RefCell;
+use std::sync::{Arc, Mutex};
+use rand_distr::{Exp, Distribution};
 use rand::Rng;
 use rand::prelude::StdRng;
 use rand::SeedableRng;
 
 pub trait Visitor<'a> {
-    fn visit_species(&mut self, species: &'a Species);
-    fn visit_reactions(&mut self, reaction: &'a Reaction);
+    fn visit_system(&mut self, system: &Arc<Mutex<ChemicalSystem>>);
+    fn visit_reactions(&mut self, reaction: &Arc<Mutex<Reaction>>);
+    fn visit_species(&mut self, species: &Arc<Mutex<Species>>);
 }
 
 pub struct SystemVisitor;
 
-impl<'a> Visitor<'a> for SystemVisitor {
-    fn visit_species(&mut self, species: &'a Species) {
-        species.quantity - 1;
+//impl<'a> Visitor<'a> for SystemVisitor {
+
+//}
+
+pub struct ChemicalSystem {
+    reactions: Vec<Arc<Mutex<Reaction>>>
+}
+
+impl ChemicalSystem {
+    fn new(reactions: Vec<Arc<Mutex<Reaction>>>) -> Arc<Mutex<ChemicalSystem>> {
+        Arc::new(Mutex::new(Self {reactions}))
     }
 
-    fn visit_reactions(&mut self, reaction: &'a Reaction) {
-        for species in &reaction.reactants {
-            self.visit_species(species);
-        }
-
-        for species in &reaction.products {
-            self.visit_species(species);
-        }
+    fn accept(system: Arc<Mutex<Self>>, visitor: &mut dyn Visitor) {
+        visitor.visit_system(&system);
     }
 }
 
-pub struct System<'a> {
-    reactions: Vec<Reaction<'a>>
-}
-
-pub struct Reaction<'a> {
-    reactants: Vec<&'a Species>,
-    products: Vec<&'a Species>,
+pub struct Reaction {
+    reactants: Vec<Arc<Mutex<Species>>>,
+    products: Vec<Arc<Mutex<Species>>>,
     delay: f64,
     lambda: f64
 }
 
-impl<'a> Reaction<'a> {
-    fn accept(&'a mut self, visitor: &mut dyn Visitor<'a>) {
-        visitor.visit_reactions(self);
+impl Reaction {
+    fn new(reactants: Vec<Arc<Mutex<Species>>>,
+           products: Vec<Arc<Mutex<Species>>>,
+           delay: f64,
+           lambda: f64 ) -> Arc<Mutex<Reaction>> {
+        Arc::new(Mutex::new(Reaction { reactants, products, delay, lambda}))
     }
 
-    fn compute_delay(&mut self, rng: &mut SeedableRng) {
-        let mut lambda = self.lambda;
-
-        for species in &self.reactants {
-            lambda *= species.quantity.get() as f64;
-        }
-
-        let distribution = match Exp::new(lambda) {
-            Ok(dist) => dist,
-            Err(_) => {
-                return;
-            }
-        };
-
-        self.delay = distribution.sample(rng);
+    fn accept(&mut self, visitor: &mut dyn Visitor) {
+        visitor.visit_reactions(self);
     }
 }
 
 pub struct Species {
     name: String,
-    quantity: RefCell<i32>
+    quantity: i32
 }
 
-impl<'a> Species {
-    fn accept(&'a mut self, visitor: &mut dyn Visitor<'a>) {
-        visitor.visit_species(self);
+impl Species {
+    fn accept(&self, visitor: &mut dyn Visitor) {
+        visitor.visit_species(Arc::clone(&self));
     }
 }
 
-fn species_builder(name: &str, quantity: i32) -> Species {
-    Species { name: name.to_string(), quantity }
+fn species_builder(name: &str, quantity: i32) -> Arc<Mutex<Species>> {
+    Arc::new(Mutex::new(Species { name: name.to_string(), quantity }))
 }
 
-fn simulate(system: &mut System, end_time: f32) {
-    let start_time: f32 = 0.0;
-    let mut visitor: SystemVisitor;
-
-    while start_time < end_time {
-        for reaction in &mut system.reactions {
-            reaction.accept(&mut visitor);
-        }
-    }
-}
 
 
 fn main() {
-    let a = species_builder("A", 2);
-    let b = species_builder("B", 1);
-    let c = species_builder("C", 1);
-    let d = species_builder("D", 3);
-    let h = species_builder("H", 1);
 
-
-    let reactants_1 = vec![&a, &b];
-    let products_1 = vec![&c, &d];
-    let reactants_2 = vec![&b, &d];
-    let products_2 = vec![&h, &a];
-
-    let reaction = Reaction {
-        reactants: reactants_1,
-        products: products_1,
-        delay: 0.0,
-        lambda: f64::MAX
-    };
 }
