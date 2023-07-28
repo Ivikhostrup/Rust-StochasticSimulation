@@ -7,41 +7,105 @@ use rand::SeedableRng;
 pub trait Visitor<'a> {
     fn visit_system(&mut self, system: &Arc<Mutex<ChemicalSystem>>);
     fn visit_reactions(&mut self, reaction: &Arc<Mutex<Reaction>>);
-    fn visit_species(&mut self, species: &Arc<Mutex<Species>>);
+    fn visit_reactants(&mut self, reactants: &Arc<Mutex<Species>>) -> Result<(), &'static str>;
+    fn visit_products(&mut self, products: &Arc<Mutex<Species>>);
 }
 
-pub struct SystemVisitor;
+pub struct SystemVisitor {
+    min_delay: Option<f64>,
+    reaction_with_min_delay: Option<Arc<Mutex<Reaction>>>
+}
+
+impl SystemVisitor {
+    fn new() -> Self {
+        SystemVisitor {
+            min_delay: None,
+            reaction_with_min_delay: None
+        }
+    }
+
+    fn min_delay(&self) -> Option<f64> {
+        self.min_delay
+    }
+
+    fn reaction_with_min_delay(&self) -> Option<Arc<Mutex<Reaction>>> {
+        // Arc::clone is used
+        self.reaction_with_min_delay.clone()
+    }
+}
 
 impl<'a> Visitor<'a> for SystemVisitor {
     fn visit_system(&mut self, system: &Arc<Mutex<ChemicalSystem>>) {
-        let system = system.lock().unwrap();
+        let system_guard = system.lock().unwrap();
 
-        for reaction in &system.reactions {
+        for reaction in &system_guard.reactions {
             self.visit_reactions(reaction);
         }
     }
 
     fn visit_reactions(&mut self, reaction: &Arc<Mutex<Reaction>>) {
-        let reaction = reaction.lock().unwrap();
-        let min_delay = 1;
+        let reaction_guard = reaction.lock().unwrap();
+        // Should be reaction.compute_delay or something
+        let delay = 1.0;
 
-        
+        // Creating a new pointer for the Arc
+        let reactants = reaction_guard.reactants.clone();
+        let products = reaction_guard.products.clone();
+
+        match self.min_delay {
+            None => {
+                self.min_delay = Some(delay);
+                self.reaction_with_min_delay = Some(Arc::clone(reaction))
+            }
+            Some(min_delay) => {
+                if delay < min_delay {
+                    self.min_delay = Some(delay);
+                    self.reaction_with_min_delay = Some(Arc::clone(reaction))
+                }
+            }
+        }
+
+        drop(reaction_guard);
+
+        let all_reactants_sufficients = reactants.iter().all(|reactants| {
+           match self.visit_reactants(reactants) {
+               Ok(()) => true,
+               Err(_) => false
+           }
+        });
+
+        if all_reactants_sufficients {
+            for product in &products {
+                self.visit_products(product)
+            }
+        }
     }
 
-    fn visit_species(&mut self, species: &Arc<Mutex<Species>>) {
-        todo!()
+    fn visit_reactants(&mut self, reactants: &Arc<Mutex<Species>>) -> Result<(), &'static str> {
+        let reactants_guard = reactants.lock().unwrap();
+
+        if reactants_guard.quantity >= 1 {
+            reactants_guard.quantity -= 1;
+            Ok(())
+        } else {
+            Err("")
+        }
+    }
+
+    fn visit_products(&mut self, products: &Arc<Mutex<Species>>) {
+        let products_guard = products.lock().unwrap();
+
+        products_guard.quantity += 1;
     }
 }
 
 pub struct ChemicalSystem {
-    reactions: Vec<Arc<Mutex<Reaction>>>,
-    min_delay: Option<f64>,
-    reaction_with_min_delay: Option<Arc<Mutex<f64>>>
+    reactions: Vec<Arc<Mutex<Reaction>>>
 }
 
 impl ChemicalSystem {
     fn new(reactions: Vec<Arc<Mutex<Reaction>>>) -> Arc<Mutex<ChemicalSystem>> {
-        Arc::new(Mutex::new(Self {reactions, min_delay: None}))
+        Arc::new(Mutex::new(Self {reactions}))
     }
 
     fn accept(system: Arc<Mutex<Self>>, visitor: &mut dyn Visitor) {
@@ -84,7 +148,7 @@ impl Species {
     }
 
     fn accept(species: Arc<Mutex<Species>>, visitor: &mut dyn Visitor) {
-        visitor.visit_species(&species);
+        visitor.visit_reactants(&species);
     }
 }
 
