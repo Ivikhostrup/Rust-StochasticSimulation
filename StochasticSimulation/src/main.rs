@@ -13,14 +13,18 @@ pub trait Visitor<'a> {
 
 pub struct SystemVisitor {
     min_delay: Option<f64>,
-    reaction_with_min_delay: Option<Arc<Mutex<Reaction>>>
+    reaction_with_min_delay: Option<Arc<Mutex<Reaction>>>,
+    rng: StdRng
 }
 
 impl SystemVisitor {
     fn new() -> Self {
+        let seed = [0; 32];
+        let rng = StdRng::from_seed(seed);
         SystemVisitor {
             min_delay: None,
-            reaction_with_min_delay: None
+            reaction_with_min_delay: None,
+            rng
         }
     }
 
@@ -44,9 +48,9 @@ impl<'a> Visitor<'a> for SystemVisitor {
     }
 
     fn visit_reactions(&mut self, reaction: &Arc<Mutex<Reaction>>) {
-        let reaction_guard = reaction.lock().unwrap();
+        let mut reaction_guard = reaction.lock().unwrap();
         // Should be reaction.compute_delay or something
-        let delay = 1.0;
+        let delay = reaction_guard.compute_delay(&mut self.rng);
 
         // Creating a new pointer for the Arc
         let reactants = reaction_guard.reactants.clone();
@@ -82,7 +86,7 @@ impl<'a> Visitor<'a> for SystemVisitor {
     }
 
     fn visit_reactants(&mut self, reactants: &Arc<Mutex<Species>>) -> Result<(), &'static str> {
-        let reactants_guard = reactants.lock().unwrap();
+        let mut reactants_guard = reactants.lock().unwrap();
 
         if reactants_guard.quantity >= 1 {
             reactants_guard.quantity -= 1;
@@ -93,7 +97,7 @@ impl<'a> Visitor<'a> for SystemVisitor {
     }
 
     fn visit_products(&mut self, products: &Arc<Mutex<Species>>) {
-        let products_guard = products.lock().unwrap();
+        let mut products_guard = products.lock().unwrap();
 
         products_guard.quantity += 1;
     }
@@ -132,8 +136,17 @@ impl Reaction {
         visitor.visit_reactions(&reaction);
     }
 
-    fn compute_delay() {
+    fn compute_delay(&mut self, rng: &mut StdRng) -> f64 {
+        let mut lambda = self.lambda;
 
+        for reactant in &self.reactants {
+            let reactant_guard = reactant.lock().unwrap();
+            lambda *= reactant_guard.quantity as f64;
+        }
+
+        let exp = Exp::new(lambda).unwrap();
+        self.delay = rng.sample(exp);
+        self.delay
     }
 }
 
@@ -145,10 +158,6 @@ pub struct Species {
 impl Species {
     fn new(name: String, quantity: i32) -> Arc<Mutex<Species>> {
         Arc::new(Mutex::new(Species {name, quantity}))
-    }
-
-    fn accept(species: Arc<Mutex<Species>>, visitor: &mut dyn Visitor) {
-        visitor.visit_reactants(&species);
     }
 }
 
