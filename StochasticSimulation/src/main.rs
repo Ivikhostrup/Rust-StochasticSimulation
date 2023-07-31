@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use rand_distr::{Exp, Distribution};
 use rand::Rng;
@@ -9,6 +10,26 @@ pub trait Visitor<'a> {
     fn visit_reactions(&mut self, reaction: &Arc<Mutex<Reaction>>);
     fn visit_reactants(&mut self, reactants: &Arc<Mutex<Species>>) -> Result<(), &'static str>;
     fn visit_products(&mut self, products: &Arc<Mutex<Species>>);
+}
+
+pub struct SymbolTable<T> {
+    symbols: HashMap<String, Arc<Mutex<T>>>
+}
+
+impl<T> SymbolTable<T> {
+    fn new() -> Self {
+        Self {
+            symbols: HashMap::new()
+        }
+    }
+
+    fn insert(&mut self, name: String, species: Arc<Mutex<T>>) {
+        self.symbols.insert(name, species);
+    }
+
+    fn lookup(&self, name: &str) -> Option<Arc<Mutex<T>>> {
+        self.symbols.get(name).cloned()
+    }
 }
 
 pub struct SystemVisitor {
@@ -49,7 +70,6 @@ impl<'a> Visitor<'a> for SystemVisitor {
 
     fn visit_reactions(&mut self, reaction: &Arc<Mutex<Reaction>>) {
         let mut reaction_guard = reaction.lock().unwrap();
-        // Should be reaction.compute_delay or something
         let delay = reaction_guard.compute_delay(&mut self.rng);
 
         // Creating a new pointer for the Arc
@@ -68,17 +88,17 @@ impl<'a> Visitor<'a> for SystemVisitor {
                 }
             }
         }
-
+        // Prevents deadlock if trying to access reaction from elsewhere
         drop(reaction_guard);
 
-        let all_reactants_sufficients = reactants.iter().all(|reactants| {
+        let all_reactants_sufficient = reactants.iter().all(|reactants| {
            match self.visit_reactants(reactants) {
                Ok(()) => true,
                Err(_) => false
            }
         });
 
-        if all_reactants_sufficients {
+        if all_reactants_sufficient {
             for product in &products {
                 self.visit_products(product)
             }
