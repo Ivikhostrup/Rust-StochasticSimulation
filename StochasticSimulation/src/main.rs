@@ -3,6 +3,7 @@ mod reaction;
 mod species;
 mod visitor;
 mod symbol_table;
+mod monitor_trait;
 use std::sync::{Arc, Mutex};
 use crate::species::Species;
 

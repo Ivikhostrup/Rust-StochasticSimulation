@@ -4,10 +4,13 @@ use crate::system::ChemicalSystem;
 use crate::species::Species;
 use rand::{SeedableRng};
 use rand::prelude::StdRng;
+use crate::monitor_trait::Monitor;
 
 
 pub trait Visitor<'a> {
-    fn visit_system(&mut self, system: &Arc<Mutex<ChemicalSystem>>);
+    fn min_delay(&self) -> Option<f64>;
+    fn reaction_with_min_delay(&self) -> Option<Arc<Mutex<Reaction>>>;
+    fn visit_system(&mut self, rng: &mut StdRng, system: &Arc<Mutex<ChemicalSystem>>/*monitor: &mut dyn Monitor*/);
     fn visit_reactions(&mut self, reaction: &Arc<Mutex<Reaction>>);
     fn visit_reactants(&mut self, reactants: &Arc<Mutex<Species>>) -> Result<(), &'static str>;
     fn visit_products(&mut self, products: &Arc<Mutex<Species>>);
@@ -29,7 +32,9 @@ impl SystemVisitor {
             rng
         }
     }
+}
 
+impl<'a> Visitor<'a> for SystemVisitor {
     fn min_delay(&self) -> Option<f64> {
         self.min_delay
     }
@@ -38,10 +43,8 @@ impl SystemVisitor {
         // Arc::clone is used
         self.reaction_with_min_delay.clone()
     }
-}
 
-impl<'a> Visitor<'a> for SystemVisitor {
-    fn visit_system(&mut self, system: &Arc<Mutex<ChemicalSystem>>) {
+    fn visit_system(&mut self, rng: &mut StdRng, system: &Arc<Mutex<ChemicalSystem>>) {
         let system_guard = system.lock().unwrap();
 
         for reaction in &system_guard.reactions {
@@ -53,36 +56,35 @@ impl<'a> Visitor<'a> for SystemVisitor {
         let mut reaction_guard = reaction.lock().unwrap();
         let delay = reaction_guard.compute_delay(&mut self.rng);
 
-        // Creating a new pointer for the Arc
-        let reactants = reaction_guard.reactants.clone();
-        let products = reaction_guard.products.clone();
-
         match self.min_delay {
             None => {
                 self.min_delay = Some(delay);
-                self.reaction_with_min_delay = Some(Arc::clone(reaction))
+                self.reaction_with_min_delay = Some(Arc::clone(reaction));
             }
-            Some(min_delay) => {
-                if delay < min_delay {
-                    self.min_delay = Some(delay);
-                    self.reaction_with_min_delay = Some(Arc::clone(reaction))
-                }
+            Some(min_delay) if delay < min_delay => {
+                self.min_delay = Some(delay);
+                self.reaction_with_min_delay = Some(Arc::clone(reaction));
             }
+            _ => {}
         }
-        
-        // Prevents deadlock if trying to access reaction from elsewhere
-        drop(reaction_guard);
 
-        let all_reactants_sufficient = reactants.iter().all(|reactants| {
-            match self.visit_reactants(reactants) {
-                Ok(()) => true,
-                Err(_) => false
-            }
+
+
+        // Check if reaction can happen (sufficient reactants)
+        let reactants_sufficient = reaction_guard.reactants.iter().all(|reactant| {
+            let mut reactant_guard = reactant.lock().unwrap();
+
+            reactant_guard.quantity >= 1
         });
 
-        if all_reactants_sufficient {
-            for product in &products {
-                self.visit_products(product)
+        if reactants_sufficient {
+            // Perform the reaction: visit reactants and products
+            for reactant in &reaction_guard.reactants {
+                self.visit_reactants(reactant);
+            }
+
+            for product in &reaction_guard.products {
+                self.visit_products(product);
             }
         }
     }
