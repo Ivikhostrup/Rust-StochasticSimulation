@@ -46,8 +46,9 @@ impl<'a> Visitor<'a> for SystemVisitor {
 
     fn visit_system(&mut self, rng: &mut StdRng, system: &Arc<Mutex<ChemicalSystem>>) {
         let system_guard = system.lock().unwrap();
+        let reaction_symbol_table = &system_guard.symbol_table;
 
-        for reaction in &system_guard.reactions {
+        for reaction in reaction_symbol_table.values() {
             self.visit_reactions(reaction);
         }
     }
@@ -67,9 +68,7 @@ impl<'a> Visitor<'a> for SystemVisitor {
             }
             _ => {}
         }
-
-
-
+        
         // Check if reaction can happen (sufficient reactants)
         let reactants_sufficient = reaction_guard.reactants.iter().all(|reactant| {
             let mut reactant_guard = reactant.lock().unwrap();

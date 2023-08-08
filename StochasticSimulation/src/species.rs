@@ -1,5 +1,6 @@
 use std::sync::{Arc, Mutex};
 
+
 pub struct Species {
     pub(crate) name: String,
     pub(crate) quantity: i32

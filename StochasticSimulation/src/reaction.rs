@@ -5,40 +5,50 @@ use rand_distr::Exp;
 use crate::species::Species;
 use crate::symbol_table::SymbolTable;
 use crate::visitor::Visitor;
+use uuid::Uuid;
 
 pub struct Reaction {
     pub(crate) reactants: Vec<Arc<Mutex<Species>>>,
     pub(crate) products: Vec<Arc<Mutex<Species>>>,
-    pub(crate) symbol_table: SymbolTable<Species>,
     pub(crate) delay: f64,
-    pub(crate) lambda: f64
+    pub(crate) lambda: f64,
+    pub(crate) uuid: Uuid,
+    pub(crate) formula: String
 }
 
 impl Reaction {
-    fn new(reactants: Vec<Arc<Mutex<Species>>>,
+    //noinspection ALL
+    pub fn new(reactants: Vec<Arc<Mutex<Species>>>,
            products: Vec<Arc<Mutex<Species>>>,
            delay: f64,
            lambda: f64) -> Arc<Mutex<Reaction>> {
 
-        let mut symbol_table = SymbolTable::new();
+        let uuid = Uuid::new_v4();
 
-        for reactant in &reactants {
-            let reactant_guard = reactant.lock().unwrap();
+        let reactant_str = reactants.iter()
+            .map(|reactant| {
+                let reactant_guard = reactant.lock().unwrap();
+                reactant_guard.name.clone()
+            })
+            // turbofish - You specify what type should come out of collect
+            .collect::<Vec<String>>()
+            .join(" + ");
 
-            symbol_table.insert(reactant_guard.name.clone(), Arc::clone(reactant));
-        }
+        let product_str = products.iter()
+            .map(|product| {
+                let product_guard = product.lock().unwrap();
+                product_guard.name.clone()
+            })
+            .collect::<Vec<String>>()
+            .join(" + ");
 
-        for product in &products {
-            let product_guard = product.lock().unwrap();
+        let formula = format!("{} -> {}", reactant_str, product_str);
 
-            symbol_table.insert(product_guard.name.clone(), Arc::clone(product));
-        }
-
-        Arc::new(Mutex::new(Reaction { reactants, products, symbol_table, delay, lambda}))
+        Arc::new(Mutex::new(Reaction { reactants, products, delay, lambda, uuid, formula}))
     }
 
-    fn accept(reaction: Arc<Mutex<Reaction>>, visitor: &mut dyn Visitor) {
-        visitor.visit_reactions(&reaction);
+    fn accept(reaction: &Arc<Mutex<Reaction>>, visitor: &mut dyn Visitor) {
+        visitor.visit_reactions(reaction);
     }
 
     pub(crate) fn compute_delay(&mut self, rng: &mut StdRng) -> f64 {

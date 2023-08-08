@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use uuid::Uuid;
 
 pub struct SymbolTable<T> {
-    symbols: HashMap<String, Arc<Mutex<T>>>
+    symbols: HashMap<Uuid, Arc<Mutex<T>>>
 }
 
 impl<T> SymbolTable<T> {
@@ -12,11 +13,11 @@ impl<T> SymbolTable<T> {
         }
     }
 
-    pub(crate) fn insert(&mut self, name: String, species: Arc<Mutex<T>>) {
-        self.symbols.insert(name, species);
+    pub(crate) fn insert(&mut self, id: Uuid, species: Arc<Mutex<T>>) {
+        self.symbols.insert(id, species);
     }
 
-    pub(crate) fn lookup(&self, name: &str) -> Option<Arc<Mutex<T>>> {
-        self.symbols.get(name).cloned()
+    pub(crate) fn lookup(&self, id: Uuid) -> Option<Arc<Mutex<T>>> {
+        self.symbols.get(&id).cloned()
     }
 }
