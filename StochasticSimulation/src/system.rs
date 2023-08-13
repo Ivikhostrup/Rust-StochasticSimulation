@@ -36,10 +36,11 @@ impl ChemicalSystem {
             let min_delay = visitor.min_delay().unwrap_or(f64::MAX);
             start_time += min_delay;
 
-            // The reaction with minimum delay is handled here now
-            if let Some(reaction) = visitor.reaction_with_min_delay() {
-                let mut reaction_guard = reaction.lock().unwrap();
-
+            // Print/save/monitor the state
+            let system_guard = system.lock().unwrap();
+            for reaction in &system_guard.reactions {
+                let reaction_guard = reaction.lock().unwrap();
+                println!("Reaction {}: Quantity {}", reaction_guard.name, reaction_guard.quantity);
             }
         }
     }

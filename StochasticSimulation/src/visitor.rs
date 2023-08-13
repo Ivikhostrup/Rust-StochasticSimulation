@@ -4,10 +4,9 @@ use crate::system::ChemicalSystem;
 use crate::species::Species;
 use rand::{SeedableRng};
 use rand::prelude::StdRng;
-use crate::monitor_trait::Monitor;
 
 
-pub trait Visitor<'a> {
+pub trait Visitor {
     fn min_delay(&self) -> Option<f64>;
     fn reaction_with_min_delay(&self) -> Option<Arc<Mutex<Reaction>>>;
     fn visit_system(&mut self, rng: &mut StdRng, system: &Arc<Mutex<ChemicalSystem>>/*monitor: &mut dyn Monitor*/);
@@ -68,7 +67,7 @@ impl<'a> Visitor<'a> for SystemVisitor {
             }
             _ => {}
         }
-        
+
         // Check if reaction can happen (sufficient reactants)
         let reactants_sufficient = reaction_guard.reactants.iter().all(|reactant| {
             let mut reactant_guard = reactant.lock().unwrap();
