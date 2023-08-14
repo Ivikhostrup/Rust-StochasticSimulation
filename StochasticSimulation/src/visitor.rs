@@ -9,7 +9,7 @@ use rand::prelude::StdRng;
 pub trait Visitor {
     fn min_delay(&self) -> Option<f64>;
     fn reaction_with_min_delay(&self) -> Option<Arc<Mutex<Reaction>>>;
-    fn visit_system(&mut self, rng: &mut StdRng, system: &Arc<Mutex<ChemicalSystem>>/*monitor: &mut dyn Monitor*/);
+    fn visit_system(&mut self, rng: &mut StdRng, system: &ChemicalSystem/*monitor: &mut dyn Monitor*/);
     fn visit_reactions(&mut self, reaction: &Arc<Mutex<Reaction>>);
     fn visit_reactants(&mut self, reactants: &Arc<Mutex<Species>>) -> Result<(), &'static str>;
     fn visit_products(&mut self, products: &Arc<Mutex<Species>>);
@@ -22,7 +22,7 @@ pub struct SystemVisitor {
 }
 
 impl SystemVisitor {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         let seed = [0; 32];
         let rng = StdRng::from_seed(seed);
         SystemVisitor {
@@ -33,7 +33,7 @@ impl SystemVisitor {
     }
 }
 
-impl<'a> Visitor<'a> for SystemVisitor {
+impl Visitor for SystemVisitor {
     fn min_delay(&self) -> Option<f64> {
         self.min_delay
     }
@@ -43,11 +43,10 @@ impl<'a> Visitor<'a> for SystemVisitor {
         self.reaction_with_min_delay.clone()
     }
 
-    fn visit_system(&mut self, rng: &mut StdRng, system: &Arc<Mutex<ChemicalSystem>>) {
-        let system_guard = system.lock().unwrap();
-        let reaction_symbol_table = &system_guard.symbol_table;
+    fn visit_system(&mut self, rng: &mut StdRng, system: &ChemicalSystem) {
+        let reaction_symbol_table = &system.symbol_table;
 
-        for reaction in reaction_symbol_table.values() {
+        for reaction in reaction_symbol_table.symbols.values() {
             self.visit_reactions(reaction);
         }
     }

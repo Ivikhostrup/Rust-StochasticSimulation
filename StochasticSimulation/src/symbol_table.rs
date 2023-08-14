@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 
 pub struct SymbolTable<T> {
-    symbols: HashMap<Uuid, Arc<Mutex<T>>>
+    pub symbols: HashMap<Uuid, Arc<Mutex<T>>>
 }
 
 impl<T> SymbolTable<T> {

@@ -20,10 +20,10 @@ impl Reaction {
     //noinspection ALL
     pub fn new(reactants: Vec<Arc<Mutex<Species>>>,
            products: Vec<Arc<Mutex<Species>>>,
-           delay: f64,
            lambda: f64) -> Arc<Mutex<Reaction>> {
 
         let uuid = Uuid::new_v4();
+        let delay = f64::MAX;
 
         let reactant_str = reactants.iter()
             .map(|reactant| {
@@ -62,5 +62,34 @@ impl Reaction {
         let exp = Exp::new(lambda).unwrap();
         self.delay = rng.sample(exp);
         self.delay
+    }
+
+    pub fn print_details(&self) {
+        //println!("Formula {}", self.formula);
+
+        print!("Reactants: ");
+        // Enumerate provides tuple with index and value
+        // Used to keep track of position
+        for (index, reactant) in self.reactants.iter().enumerate() {
+            let reactant_guard = reactant.lock().unwrap();
+            print!("{} {}", reactant_guard.name, reactant_guard.quantity);
+
+            if index < self.reactants.len() - 1 {
+                print!(", ");
+            }
+        }
+
+        println!();
+
+        print!("Products:  ");
+        for (index, products) in self.products.iter().enumerate() {
+            let product_guard = products.lock().unwrap();
+            print!("{} {}", product_guard.name, product_guard.quantity);
+
+            if index < self.products.len() - 1 {
+                print!(", ");
+            }
+        }
+        println!();
     }
 }
