@@ -1,17 +1,29 @@
 use plotters::prelude::*;
 
 pub fn plot() {
-    let root_drawing_area = BitMapBackend::new("images/0.1.png", (1024, 768))
+    let root_drawing_area = BitMapBackend::new("images/0.3.png", (600, 400))
         .into_drawing_area();
 
     root_drawing_area.fill(&WHITE).unwrap();
 
-    let mut chart = ChartBuilder::on(&root_drawing_area)
-        .build_cartesian_2d(-3.14..3.14, -1.2..1.2)
+    let mut ctx = ChartBuilder::on(&root_drawing_area)
+        .set_label_area_size(LabelAreaPosition::Left, 40)
+        .set_label_area_size(LabelAreaPosition::Bottom, 40)
+        .caption("Demo", ("sans-serif", 40))
+        .build_cartesian_2d(-10..10, 0..100)
         .unwrap();
 
-    chart.draw_series(LineSeries::new(
-        (-314..314).map(|x| x as f64 / 100.0).map(|x| (x, x.sin())),
-        &RED
-    )).unwrap();
+    ctx.configure_mesh().draw().unwrap();
+
+    ctx.draw_series(LineSeries::new((-10..=10).map(|x| (x, x*x)), &GREEN))
+        .unwrap()
+        .label("Cosine")
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &RED));
+
+    ctx.configure_series_labels()
+        .position(SeriesLabelPosition::UpperRight)
+        .background_style(&WHITE.mix(0.8))  // Optional, for better visibility
+        .border_style(&BLACK)               // Optional, for better visibility
+        .draw()
+        .unwrap();
 }
