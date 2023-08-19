@@ -1,4 +1,5 @@
 use plotters::prelude::*;
+use crate::monitor::SystemStateSnapshot;
 
 pub fn plot() {
     let root_drawing_area = BitMapBackend::new("images/0.3.png", (600, 400))
