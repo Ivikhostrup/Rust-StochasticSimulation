@@ -23,34 +23,36 @@ impl DefaultMonitor {
     }
 
     pub fn plot_graph(&self, species_to_plot: &[&str]) {
-        let filtered_data: Vec<_> = self.history.iter().map(|snapshot| {
-            let filtered_reactions: Vec<_> = snapshot.reactions.iter()
+        // Iterate over the history and extract reactions based on the species of interest
+        let filtered_snapshots: Vec<_> = self.history.iter().map(|snapshot| {
+
+            // Filter reactions in the snapshot based on whether they contain any species of interest
+            let selected_reactions: Vec<_> = snapshot.reactions.iter()
                 .filter(|reaction| {
-                    DefaultMonitor::reaction_contains_species(reaction, species_to_plot)
+                    let reaction_guard = reaction.lock().unwrap();
+
+                    // Check both reactants and products for the species of interest
+                    reaction_guard.reactants.iter()
+                        .chain(reaction_guard.products.iter())
+                        .any(|species| {
+                            let species_guard = species.lock().unwrap();
+
+                            // Check if the current species is in the list of species to plot
+                            species_to_plot.contains(&species_guard.name.as_str())
+                        })
                 })
-                .cloned()
+                .cloned()  // Clone the Arc<Mutex<Reaction>> to create the filtered list
                 .collect();
 
+            // Create a new snapshot with only the filtered reactions
             SystemStateSnapshot {
                 time: snapshot.time,
-                reactions: filtered_reactions
+                reactions: selected_reactions
             }
         })
             .collect();
     }
 
-    fn reaction_contains_species(reaction: &Arc<Mutex<Reaction>>, species_to_plot: &[&str]) -> bool {
-        let reaction_guard = reaction.lock().unwrap();
-
-        reaction_guard.reactants.iter()
-            .chain(reaction_guard.products.iter())
-            .any(|species| DefaultMonitor::species_name_is_in_list(species, species_to_plot))
-    }
-
-    fn species_name_is_in_list(species: &Arc<Mutex<Species>>, species_to_plot: &[&str]) -> bool {
-        let species_guard = species.lock().unwrap();
-        species_to_plot.contains(&species_guard.name.as_str())
-    }
 }
 
 impl Monitor<Vec<Arc<Mutex<Reaction>>>> for DefaultMonitor {
