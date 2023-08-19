@@ -52,7 +52,6 @@ impl DefaultMonitor {
         })
             .collect();
     }
-
 }
 
 impl Monitor<Vec<Arc<Mutex<Reaction>>>> for DefaultMonitor {
