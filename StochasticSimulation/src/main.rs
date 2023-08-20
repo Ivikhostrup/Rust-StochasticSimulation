@@ -41,7 +41,4 @@ fn main() {
     let mut monitor = DefaultMonitor::new();
 
     system.simulation(1000.0, &mut visitor, &mut rng, &mut monitor);
-
-    plot();
-
 }

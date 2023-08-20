@@ -1,4 +1,5 @@
 use std::sync::{Arc, Mutex};
+use crate::plotter::plot;
 use crate::reaction::Reaction;
 use crate::species::Species;
 
@@ -22,7 +23,7 @@ impl DefaultMonitor {
         }
     }
 
-    pub fn plot_graph(&self, species_to_plot: &[&str]) {
+    pub fn extract_plot_data(&self, species_to_plot: &[&str]) -> Option<Vec<SystemStateSnapshot>>{
         // Iterate over the history and extract reactions based on the species of interest
         let filtered_snapshots: Vec<_> = self.history.iter().map(|snapshot| {
 
@@ -51,6 +52,20 @@ impl DefaultMonitor {
             }
         })
             .collect();
+
+        if filtered_snapshots.is_empty() {
+            None
+        } else {
+            Some(filtered_snapshots)
+        }
+    }
+
+    pub fn visualize_data(&self, species_to_plot: &[&str]) {
+        if let Some(data_to_plot) = self.extract_plot_data(species_to_plot) {
+            plot(&data_to_plot);
+        } else {
+            println!("No data to log");
+        }
     }
 }
 
