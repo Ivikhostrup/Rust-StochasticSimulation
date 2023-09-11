@@ -45,10 +45,10 @@ impl ChemicalSystem {
             monitor.record_state(start_time, &reactions_vec);
 
             // Print/save/monitor the state
-            for reaction in self.symbol_table.symbols.values() {
-                let reaction_guard = reaction.lock().unwrap();
-                reaction_guard.print_details();
-            }
+            //for reaction in self.symbol_table.symbols.values() {
+                //let reaction_guard = reaction.lock().unwrap();
+                //reaction_guard.print_details();
+            //}
         }
     }
 }

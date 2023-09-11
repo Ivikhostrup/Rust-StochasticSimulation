@@ -12,7 +12,7 @@ use rand::rngs::StdRng;
 use rand::SeedableRng;
 use crate::monitor::DefaultMonitor;
 use crate::plotter::plot;
-use crate::reaction::Reaction;
+use crate::reaction::{Reaction, SpeciesRole};
 use crate::species::Species;
 use crate::system::ChemicalSystem;
 use crate::visitor::SystemVisitor;
@@ -41,4 +41,7 @@ fn main() {
     let mut monitor = DefaultMonitor::new();
 
     system.simulation(1000.0, &mut visitor, &mut rng, &mut monitor);
+
+    let species_to_monitor = &[("A", SpeciesRole::Reactant), ("B", SpeciesRole::Product)];
+    monitor.visualize_data(species_to_monitor);
 }

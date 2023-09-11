@@ -7,6 +7,12 @@ use crate::symbol_table::SymbolTable;
 use crate::visitor::Visitor;
 use uuid::Uuid;
 
+pub enum SpeciesRole {
+    Reactant,
+    Product,
+    Both
+}
+
 pub struct Reaction {
     pub(crate) reactants: Vec<Arc<Mutex<Species>>>,
     pub(crate) products: Vec<Arc<Mutex<Species>>>,

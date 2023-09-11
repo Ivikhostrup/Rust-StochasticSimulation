@@ -3,7 +3,9 @@ use plotters::prelude::*;
 use crate::monitor::SystemStateSnapshot;
 
 pub fn plot(data: &Vec<SystemStateSnapshot>) {
-    let root_drawing_area = BitMapBackend::new("images/0.3.png", (600, 400))
+
+
+    let root_drawing_area = BitMapBackend::new("images/0.4.png", (600, 400))
         .into_drawing_area();
 
     root_drawing_area.fill(&WHITE).unwrap();
@@ -13,10 +15,11 @@ pub fn plot(data: &Vec<SystemStateSnapshot>) {
 
     // Flatten the list of reactions from each snapshot into a continuous sequence
     // of all reactions across all snapshots, and then find the maximum reaction.
-    let max_quantity = data.iter()
-        .flat_map(|snap| snap.reactions.iter())
-        .max()
-        .unwrap();
+    let max_quantity = 1000;
+        //data.iter()
+        //.flat_map(|snap| snap.reactions.iter())
+        //.max()
+        //.unwrap();
 
     let mut ctx = ChartBuilder::on(&root_drawing_area)
         .set_label_area_size(LabelAreaPosition::Left, 40)
@@ -26,23 +29,32 @@ pub fn plot(data: &Vec<SystemStateSnapshot>) {
         .unwrap();
 
     let first_snapshot = data.first().unwrap();
+
     let unique_species = first_snapshot.reactions.iter()
         .flat_map(|reaction| {
             let reaction_guard = reaction.lock().unwrap();
 
-            reaction_guard.reactants.iter().chain(reaction_guard.products.iter())
+            let species: Vec<_> = reaction_guard.reactants.iter()
+                .chain(reaction_guard.products.iter())
+                .cloned()
+                .collect();
+            species
         })
         .map(|species| {
             let species_guard = species.lock().unwrap();
             species_guard.name.clone()
     }).collect::<Vec<String>>();
 
+
+    for species in unique_species.iter() {
+        println!("{}", species)
+    }
     fn generate_color(index: usize) -> RGBColor {
         let colors = [RED, GREEN, BLUE, MAGENTA, CYAN, YELLOW];  // Add more colors if necessary
         colors[index % colors.len()]
     }
 
-    for (index, species_name) in &unique_species.iter().enumerate() {
+    for (index, species_name) in unique_species.iter().enumerate() {
         let color = generate_color(index);
 
         let series_data: Vec<_> = data.iter().map(|snap| {
@@ -52,7 +64,11 @@ pub fn plot(data: &Vec<SystemStateSnapshot>) {
                 .flat_map(|reaction| {
                     let reaction_guard = reaction.lock().unwrap();
 
-                    reaction_guard.reactants.iter().chain(reaction_guard.products.iter())
+                    let species: Vec<_> = reaction_guard.reactants.iter()
+                        .chain(reaction_guard.products.iter())
+                        .cloned()
+                        .collect();
+                    species
                 })
                 .find(|species| {
                     let species_guard = species.lock().unwrap();
