@@ -42,6 +42,6 @@ fn main() {
 
     system.simulation(1000.0, &mut visitor, &mut rng, &mut monitor);
 
-    let species_to_monitor = &[("A", SpeciesRole::Reactant), ("B", SpeciesRole::Product)];
+    let species_to_monitor = &[("A", SpeciesRole::Reactant), ("B", SpeciesRole::Product), ("C", SpeciesRole::Product)];
     monitor.visualize_data(species_to_monitor);
 }

@@ -87,10 +87,9 @@ impl DefaultMonitor {
         }
     }
 
-
     pub fn visualize_data(&self, species_to_plot: &[(&str, SpeciesRole)]) {
         if let Some(data_to_plot) = self.extract_plot_data(species_to_plot) {
-            plot(&data_to_plot);
+            plot(&data_to_plot, &species_to_plot);
         } else {
             println!("No data to log");
         }
@@ -101,9 +100,44 @@ impl Monitor<Vec<Arc<Mutex<Reaction>>>> for DefaultMonitor {
     fn record_state(&mut self, time: f64, reactions: &Vec<Arc<Mutex<Reaction>>>) {
         let snapshot = SystemStateSnapshot {
             time,
-            reactions: reactions.clone()
+            reactions: reactions.iter().map(|reaction_arc| {
+                let reaction = reaction_arc.lock().unwrap();
+
+                // Create new Species instances to hold the current state
+                let reactants = reaction.reactants.iter()
+                    .map(|species_arc| {
+                        let species = species_arc.lock().unwrap();
+                        Arc::new(Mutex::new(Species {
+                            name: species.name.clone(),
+                            quantity: species.quantity
+                        }))
+                    })
+                    .collect();
+
+                let products = reaction.products.iter()
+                    .map(|species_arc| {
+                        let species = species_arc.lock().unwrap();
+                        Arc::new(Mutex::new(Species {
+                            name: species.name.clone(),
+                            quantity: species.quantity
+                        }))
+                    })
+                    .collect();
+
+                // Create a new Reaction instance to hold the current state
+                Arc::new(Mutex::new(Reaction {
+                    reactants,
+                    products,
+                    delay: reaction.delay,
+                    lambda: reaction.lambda,
+                    uuid: reaction.uuid,
+                    formula: reaction.formula.clone()
+                }))
+            })
+                .collect(),
         };
 
         self.history.push(snapshot);
     }
+
 }

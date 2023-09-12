@@ -39,6 +39,7 @@ impl ChemicalSystem {
             self.accept(visitor, rng);
 
             let min_delay = visitor.min_delay().unwrap_or(f64::MAX);
+            println!("{}", min_delay);
             start_time += min_delay;
 
             let reactions_vec: Vec<_> = self.symbol_table.symbols.values().cloned().collect();
