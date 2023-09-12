@@ -40,7 +40,7 @@ fn main() {
     let mut visitor = SystemVisitor::new();
     let mut monitor = DefaultMonitor::new();
 
-    system.simulation(1000.0, &mut visitor, &mut rng, &mut monitor);
+    system.simulation(2000.0, &mut visitor, &mut rng, &mut monitor);
 
     let species_to_monitor = &[("A", SpeciesRole::Reactant), ("B", SpeciesRole::Product), ("C", SpeciesRole::Product)];
     monitor.visualize_data(species_to_monitor);

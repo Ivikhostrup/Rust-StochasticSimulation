@@ -24,7 +24,7 @@ pub fn plot(data: &Vec<SystemStateSnapshot>, species_to_plot: &[(&str, SpeciesRo
         .set_label_area_size(LabelAreaPosition::Left, 40)
         .set_label_area_size(LabelAreaPosition::Bottom, 40)
         .caption("Demo", ("sans-serif", 40))
-        .build_cartesian_2d(min_time..100.0, 0..max_quantity)
+        .build_cartesian_2d(min_time..max_time, 0..max_quantity)
         .unwrap();
 
     let species_to_plot_names: HashSet<&str> = species_to_plot.iter()
@@ -71,7 +71,7 @@ pub fn plot(data: &Vec<SystemStateSnapshot>, species_to_plot: &[(&str, SpeciesRo
     ctx.configure_mesh().draw().unwrap();
 
     ctx.configure_series_labels()
-        .position(SeriesLabelPosition::UpperLeft)
+        .position(SeriesLabelPosition::UpperRight)
         .background_style(&WHITE.mix(0.8))
         .border_style(&BLACK)
         .draw()
