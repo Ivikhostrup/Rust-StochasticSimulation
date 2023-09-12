@@ -8,6 +8,7 @@ mod plotter;
 mod monitor;
 
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use crate::monitor::DefaultMonitor;
@@ -40,8 +41,14 @@ fn main() {
     let mut visitor = SystemVisitor::new();
     let mut monitor = DefaultMonitor::new();
 
+    let start_time_instant = Instant::now();
+    let mut start_time = 0.0;
+
     system.simulation(2000.0, &mut visitor, &mut rng, &mut monitor);
 
     let species_to_monitor = &[("A", SpeciesRole::Reactant), ("B", SpeciesRole::Product), ("C", SpeciesRole::Product)];
     monitor.visualize_data(species_to_monitor);
+
+    let duration = Instant::now() - start_time_instant;
+    println!("Simulation with plotting took: {:?}", duration);
 }

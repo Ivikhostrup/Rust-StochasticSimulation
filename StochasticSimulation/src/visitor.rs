@@ -45,7 +45,7 @@ impl Visitor for SystemVisitor {
 
     fn visit_system(&mut self, rng: &mut StdRng, system: &ChemicalSystem) {
         self.min_delay = None;
-        self.reaction_with_min_delay = None;
+        //self.reaction_with_min_delay = None;
 
         let reaction_symbol_table = &system.symbol_table;
 
