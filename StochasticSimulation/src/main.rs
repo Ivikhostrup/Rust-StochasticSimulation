@@ -11,18 +11,14 @@ use std::time::Instant;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use rayon::prelude::*;
+use rayon::ThreadPoolBuilder;
 use crate::monitor::DefaultMonitor;
 use crate::reaction::{Reaction, SpeciesRole};
 use crate::species::{Species, species_builder};
 use crate::system::ChemicalSystem;
 use crate::visitor::SystemVisitor;
 
-
 fn main() {
-
-    let pool = rayon::ThreadPoolBuilder::build();
-
-
 
     let a = species_builder("A", 100);
     let b = species_builder("B", 0);
@@ -40,14 +36,35 @@ fn main() {
     let mut visitor = SystemVisitor::new();
     let mut monitor = DefaultMonitor::new();
 
-    let start_time_instant = Instant::now();
-    let mut start_time = 0.0;
+    //let start_time_instant = Instant::now();
+    //let mut start_time = 0.0;
 
-    system.simulation(2000.0, &mut visitor, &mut rng, &mut monitor);
+    //system.simulation(2000.0, &mut visitor, &mut rng, &mut monitor);
+
+    let num_threads = 4;
+    let num_simulations = 20;
+
+    let pool = ThreadPoolBuilder::new()
+        .num_threads(num_threads)
+        .build()
+        .unwrap();
+
+    let start = Instant::now();
+    pool.install(|| {
+        (0..num_simulations).into_par_iter().for_each(|_| {
+            let mut local_system = system.clone();
+            let mut local_rng = StdRng::from_seed(seed);
+            let mut local_visitor = SystemVisitor::new();
+            let mut local_monitor = DefaultMonitor::new();
+
+            local_system.simulation(2000.0, &mut local_visitor, &mut local_rng, &mut local_monitor)
+        })
+    });
+
+    let duration = start.elapsed();
+
+    println!("Simulations took {:?}", duration);
 
     let species_to_monitor = &[("A", SpeciesRole::Reactant), ("B", SpeciesRole::Product), ("C", SpeciesRole::Product)];
     monitor.visualize_data(species_to_monitor);
-
-    let duration = Instant::now() - start_time_instant;
-    println!("Simulation with plotting took: {:?}", duration);
 }

@@ -15,6 +15,7 @@ pub trait Visitor {
     fn visit_products(&mut self, products: &Arc<Mutex<Species>>);
 }
 
+#[derive(Clone)]
 pub struct SystemVisitor {
     min_delay: Option<f64>,
     reaction_with_min_delay: Option<Arc<Mutex<Reaction>>>,

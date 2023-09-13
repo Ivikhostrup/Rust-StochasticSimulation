@@ -13,6 +13,7 @@ pub enum SpeciesRole {
     Both
 }
 
+#[derive(Clone)]
 pub struct Reaction {
     pub(crate) reactants: Vec<Arc<Mutex<Species>>>,
     pub(crate) products: Vec<Arc<Mutex<Species>>>,

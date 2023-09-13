@@ -6,8 +6,8 @@ use crate::reaction::Reaction;
 use crate::symbol_table::SymbolTable;
 use crate::visitor::Visitor;
 
+#[derive(Clone)]
 pub struct ChemicalSystem {
-    //pub(crate) reactions: Vec<Arc<Mutex<Reaction>>>,
     pub(crate) symbol_table: SymbolTable<Reaction>
 }
 

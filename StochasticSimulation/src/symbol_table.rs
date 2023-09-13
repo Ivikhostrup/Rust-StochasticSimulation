@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 
+#[derive(Clone)]
 pub struct SymbolTable<T> {
     pub symbols: HashMap<Uuid, Arc<Mutex<T>>>
 }

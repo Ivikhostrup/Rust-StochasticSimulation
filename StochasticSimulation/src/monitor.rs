@@ -7,11 +7,27 @@ pub trait Monitor<T> {
     fn record_state(&mut self, time: f64, state: &T);
 }
 
+pub trait FilterableMonitor<T>: Monitor<T> {
+    fn record_state_with_filter(&mut self, time: f64, state: &T, species_to_record: &[(&str, SpeciesRole)]);
+}
+
+pub struct SystemStateSnapshot1 {
+    time: f64,
+    pub events: Vec<SpeciesEvents>
+}
+
+pub struct SpeciesEvents {
+    pub species_name: String,
+    pub new_quantity: i32
+}
+
+#[derive(Clone)]
 pub struct SystemStateSnapshot {
     pub time: f64,
     pub reactions: Vec<Arc<Mutex<Reaction>>>
 }
 
+#[derive(Clone)]
 pub struct DefaultMonitor {
     pub history: Vec<SystemStateSnapshot>
 }
@@ -94,6 +110,10 @@ impl DefaultMonitor {
             println!("No data to log");
         }
     }
+
+    pub fn merge(&mut self, other: DefaultMonitor, species_to_plot: &[(&str, SpeciesRole)]) {
+        self.history.extend(other.history);
+    }
 }
 
 impl Monitor<Vec<Arc<Mutex<Reaction>>>> for DefaultMonitor {
@@ -138,6 +158,53 @@ impl Monitor<Vec<Arc<Mutex<Reaction>>>> for DefaultMonitor {
         };
 
         self.history.push(snapshot);
+    }
+}
+
+impl FilterableMonitor<Vec<Arc<Mutex<Reaction>>>> for DefaultMonitor {
+    fn record_state_with_filter(&mut self, time: f64, reactions: &Vec<Arc<Mutex<Reaction>>>, species_to_record: &[(&str, SpeciesRole)]) {
+        let mut events = Vec::new();
+
+        // Get the most recent snapshot if available
+        if let Some(most_recent_snapshot) = self.history.last() {
+
+            for reaction_arc in reactions {
+                let reaction_guard = reaction_arc.lock().unwrap();
+
+                for current_species_arc in reaction_guard.reactants.iter()
+                    .chain(reaction_guard.products.iter()) {
+                    let current_species_guard = current_species_arc.lock().unwrap();
+
+                    // Find the matching species in the most recent snapshot
+                    for recent_reaction_arc in &most_recent_snapshot.reactions {
+                        let recent_reaction_guard = recent_reaction_arc.lock().unwrap();
+
+                        for recent_species_arc in recent_reaction_guard.reactants.iter()
+                            .chain(recent_reaction_guard.products.iter()) {
+                            let recent_species_guard = recent_species_arc.lock().unwrap();
+
+                            if recent_species_guard.name == current_species_guard.name {
+                                // Now you have found the matching species, so compare the quantities
+                                if recent_species_guard.quantity != current_species_guard.quantity {
+                                    events.push(SpeciesEvent {
+                                        species_name: current_species_guard.name.clone(),
+                                        new_quantity: current_species_guard.quantity,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // If there were any changes, record a new snapshot with those changes
+        if !events.is_empty() {
+            self.history.push(SystemStateSnapshot1 {
+                time,
+                events,
+            });
+        }
     }
 
 }
