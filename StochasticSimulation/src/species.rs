@@ -1,5 +1,8 @@
 use std::sync::{Arc, Mutex};
 
+pub fn species_builder(name: &str, quantity: i32) -> Arc<Mutex<Species>> {
+    Arc::new(Mutex::new(Species { name: name.to_string(), quantity }))
+}
 
 pub struct Species {
     pub(crate) name: String,
