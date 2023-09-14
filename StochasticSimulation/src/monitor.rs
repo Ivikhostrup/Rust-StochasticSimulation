@@ -157,7 +157,7 @@ impl Monitor<Vec<Arc<Mutex<Reaction>>>> for DefaultMonitor {
             time,
             data: snapshot_data
         };
-        
+
         self.history.push(snapshot);
     }
 }
