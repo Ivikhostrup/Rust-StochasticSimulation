@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use crate::plotter::plot;
 use crate::reaction::{Reaction, SpeciesRole};
@@ -166,31 +167,33 @@ impl FilterableMonitor<Vec<Arc<Mutex<Reaction>>>> for DefaultMonitor {
     fn record_state_with_filter(&mut self, time: f64, reactions: &Vec<Arc<Mutex<Reaction>>>, species_to_record: &[(&str, SpeciesRole)]) {
         let mut events = Vec::new();
 
-        // Get the most recent snapshot if available
-        if let Some(most_recent_snapshot) = self.history.last() {
-            if let SnapshotData::Reactions(recent_reaction) = most_recent_snapshot {
-                for reaction_arc in reactions {
-                    let reaction_guard = reaction_arc.lock().unwrap();
+        if let Some(SystemStateSnapshot { data: SnapshotData::Reactions(recent_reactions), .. }) = self.history.last() {
+            let mut recent_species_map = HashMap::new();
 
-                    for current_species_arc in reaction_guard.reactants.iter()
-                        .chain(reaction_guard.products.iter()) {
-                        let current_species_guard = current_species_arc.lock().unwrap();
+            for recent_reaction in recent_reactions {
+                let recent_reaction_guard = recent_reaction.lock().unwrap();
 
-                        for recent_reaction_arc in recent_reaction {
-                            let recent_reaction_guard = recent_reaction_arc.lock().unwrap();
+                for recent_species in recent_reaction_guard.reactants.iter()
+                    .chain(recent_reaction_guard.products.iter()) {
+                    let recent_species_guard = recent_species.lock().unwrap();
 
-                            for recent_species_arc in recent_reaction_guard.reactants.iter()
-                                .chain(recent_reaction_guard.products.iter()) {
-                                let recent_species_guard = recent_species_arc.lock().unwrap();
+                    recent_species_map.insert(&recent_species_guard.name, &recent_species_guard.quantity);
+                }
+            }
 
-                                if recent_species_guard.name == current_species_guard.name {
-                                    if recent_species_guard.quantity != current_species_guard.quantity {
-                                        events.push(SpeciesEvents {
-                                            species_name: current_species_guard.name.clone(),
-                                            new_quantity: current_species_guard.quantity
-                                        });
-                                    }
-                                }
+            for reaction_arc in reactions {
+                let reaction_guard = reaction_arc.lock().unwrap();
+
+                for current_species_arc in reaction_guard.reactants.iter().chain(reaction_guard.products.iter()) {
+                    let current_species_guard = current_species_arc.lock().unwrap();
+
+                    if species_to_record.iter().any(|(name, _role)| name == current_species_guard.name.as_str()) {
+                        if let Some(&recent_quantity) = recent_species_map.get(&current_species_guard.name) {
+                            if recent_quantity != current_species_guard.quantity {
+                                events.push(SpeciesEvents {
+                                    species_name: current_species_guard.name.clone(),
+                                    new_quantity: current_species_guard.quantity
+                                })
                             }
                         }
                     }
