@@ -7,6 +7,7 @@ mod monitor_trait;
 mod plotter;
 mod monitor;
 
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
@@ -43,6 +44,8 @@ fn main() {
 
     let num_threads = 4;
     let num_simulations = 20;
+    let monitor_results: Arc<Mutex<Vec<DefaultMonitor>>> = Arc::new(Mutex::new(Vec::new()));
+    let species_to_monitor = &[("A", SpeciesRole::Reactant), ("B", SpeciesRole::Product), ("C", SpeciesRole::Product)];
 
     let pool = ThreadPoolBuilder::new()
         .num_threads(num_threads)
@@ -57,14 +60,24 @@ fn main() {
             let mut local_visitor = SystemVisitor::new();
             let mut local_monitor = DefaultMonitor::new();
 
-            local_system.simulation(2000.0, &mut local_visitor, &mut local_rng, &mut local_monitor)
+            local_system.simulation(2000.0,
+                                    &mut local_visitor,
+                                    &mut local_rng,
+                                    &mut local_monitor,
+                                    &species_to_monitor);
+
+            let mut results = monitor_results.lock().unwrap();
+            results.push(local_monitor);
         })
     });
+
+    let results = monitor_results.lock().unwrap();
+
+
 
     let duration = start.elapsed();
 
     println!("Simulations took {:?}", duration);
 
-    let species_to_monitor = &[("A", SpeciesRole::Reactant), ("B", SpeciesRole::Product), ("C", SpeciesRole::Product)];
     monitor.visualize_data(species_to_monitor);
 }
